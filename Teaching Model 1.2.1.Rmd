@@ -1,0 +1,324 @@
+---
+title: "Teaching Model1.2"
+author: "Module2"
+date: '2023-06-3'
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+2.1 Description of the Updated Dataset
+
+Now, we start an updated data to achieve a goal of model evaluation and prediction and model exploration, typically linear models. Before doing so, we first give an experiment design for an updated dataset by starting checking its variation 
+```{r}
+library(dplyr)
+```
+
+
+
+```{r}
+colgtotal<- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/colgtotal.csv")
+bs <- filter(colgtotal, Major =='1')
+lw<- filter(colgtotal, Major =='2')
+md <- filter(colgtotal, Major =='3')
+cp <- filter(colgtotal, Major =='4')
+cmb<-bind_rows(list( "1"=bs, "2"=cp, "3"=lw, '4'=md) , .id="Major")
+
+
+```
+
+
+```{r}
+#remove.packages("rlang")
+#remove.packages("dplyr")
+
+#install.packages("rlang")
+#install.packages("dplyr")
+
+library(rlang)
+library(dplyr)
+
+```
+
+```{r}
+library(ggplot2)
+ggplot(cmb, aes(as.numeric(Final.Score), colour=Major))+
+  geom_freqpoly()
+ggplot(cmb, aes(as.numeric(Final.Score), colour=Major, y=..density..))+
+    geom_freqpoly()
+ggplot(cmb, aes(as.numeric(Participation,Final.Score), color=Major))+
+    geom_density(kernel="gaussian")
+ggplot(cmb, aes(as.numeric(Project, Final.Score), color=Major))+
+    geom_density(kernel="gaussian")
+
+```
+The above plot shows the density of individual final performance when controlling for student majors. Major may have a relationship with student final score performance. For example, major 2, 3 and major 4 perform higher but major 1 nor.
+
+Regarding project, for example, major 4, major 3 display an increase tendency to complete the project while not the major 2.
+
+Consider the range of score 60 - 70, major2 tends to have higher density.
+
+
+Now we consider gender
+We use '0' indicate male, and '1' indicate female
+
+```{r}
+library(ggplot2)
+ggplot(cmb, aes(as.numeric(Final.Score), colour=as.factor(Gender)))+
+  geom_freqpoly()
+ggplot(cmb, aes(as.numeric(Final.Score), colour=as.factor(Gender), y=..density..))+
+    geom_freqpoly()
+ggplot(cmb, aes(as.numeric(Project, Final.Score), color=as.factor(Gender)))+
+    geom_density(kernel="gaussian")
+```
+
+The density function tells us the apparent difference with respect to gender, where female has higher density compared to male on final scorn.
+
+This pattern isn't found on the project with gender, 
+
+Besides, look at scores between 60-70, males take much higher destiny than females do regarding their final score, 
+
+
+
+
+```{r}
+ggplot(cmb, aes(as.numeric(Final.Score), color=as.factor(Race)))+
+    geom_density(kernel="gaussian")
+ggplot(cmb, aes(as.numeric(Project), color=as.factor(Race)))+
+    geom_density(kernel="gaussian")
+ggsave('parti_goal.pdf')
+
+```
+
+
+The plots have demonstrated race seem to take a big effect on student performance such as final score. In this plot, race 2 and race 3 show the strong performance.
+
+However, we found race 1 takers higher density regarding the project accomplishment.
+
+Race 2 shows higher density regarding score range of 60 - 70
+
+
+```{r}
+ggplot(cmb, aes(as.numeric(Final.Score), color=as.factor(Goal)))+
+    geom_density(kernel="gaussian")
+ggsave('goal_final.pdf')
+ggplot(cmb, aes(as.numeric(Project), color=as.factor(Goal)))+
+    geom_density(kernel="gaussian")
+ggsave('parti_goal.pdf')
+
+```
+
+
+Now, taking a consideration of goal, it seems students who have the goal of 2.5 and 5 take the higher density among the population about their final performance. 
+When studying project, goal of 4 and 5 as well as 0 have been found above other groups.
+In a period of 60-70, goal of 2.5 takes on the highest density.
+
+```{r}
+ggplot(cmb, aes(as.numeric(Final.Score), color=as.factor(Project)))+
+    geom_density(kernel="gaussian")
+ggsave('project_final.pdf')
+
+```
+People who don't complete the project are scored with a lower density than people who are scored higher.
+
+
+
+```{r}
+cmb$index <- 1:nrow(cmb)
+```
+
+The following is about the proportion boxplot for each variable in the study. We see a fact that participation takes the smallest propotion, and final test takes the largest one, similar to the finding in the section 1.1.
+
+```{r}
+library(reshape2)
+cmb_mod <-  melt(cmb, id.vars='index', 
+                  measure.vars=c('quiz1', 'Mid.Test', 'HW', 'Participation', 'Final.Score'))
+p<- ggplot(cmb_mod)+
+  geom_boxplot(
+    mapping=aes( 
+      x = index,
+      y = value, color =variable
+    )
+  )+
+  coord_flip()+
+  xlab("")+
+  ylab("Final Test Evaluation")+
+  theme_minimal()
+
+print(p)
+```
+The following is about boxplot for each categorical variable, which reveal the similar information as the above.
+
+```{r}
+ggplot(data=cmb, mapping=aes(x=Major, y=Final.Score))+geom_boxplot()
+ggplot(data=cmb, mapping=aes(x=as.factor(Gender), y=Final.Score))+geom_boxplot()
+ggplot(data=cmb, mapping=aes(x=as.factor(Race), y=Final.Score))+geom_boxplot()
+ggplot(data=cmb, mapping=aes(x=as.factor(Goal), y=Final.Score))+geom_boxplot()
+ggplot(data=cmb, mapping=aes(x=as.factor(Project), y=Final.Score))+geom_boxplot()
+
+```
+
+2.2 Modeling Testing Method
+After the exploration to the dataset, we start to find a model that can best fits the data for prediction. The following script is to construct a model that is used to find the prediction of y, in this project, the final score.
+
+
+2.2.1 Experiment Design
+
+```{r}
+install.packages(rafalib)
+library(rafalib)
+gd <- colgtotal$Gender
+gd<- as.factor(gd)
+rc <- colgtotal$Race
+rc<- as.factor(rc)
+mj <- colgtotal$Major
+mj <- as.factor(mj)
+gl <- colgtotal$Goal
+gl <- as.factor(gl)
+pj <- colgtotal$Project
+pj <- as.factor(pj)
+Tc<- model.matrix(~gd+rc+mj+gl, data=colgtotal)
+#imagemat(Tc, main = 'Model Matrix with factor of four')
+```
+The first model contains multiple variables
+
+Check the collinearity so that we are able to construct a model. Here, student goal might have effect to reach the collinearity. As a result of the variable goal, which causes collinarity, we prefer using PCA
+
+```{r}
+q<- colgtotal$quiz1
+C <- model.matrix(~gd+rc+mj+gl+pj-1, data=colgtotal)
+c <- model.matrix(~gd+rc+mj+pj-1, data=colgtotal)
+
+
+cat("ncol=",ncol(C),"rank=", qr(C)$rank,"\n")
+cat("ncol=",ncol(c),"rank=", qr(c)$rank,"\n")
+
+```
+
+
+
+```{r}
+rc <- as.factor(rc)
+model1 <- lm(colgtotal$Final.Score~gd+rc+mj+gl+pj)
+summary(model1)
+```
+
+From the model, we have found variables that take the significant values. They are gender, race, majors, respectively. 
+
+
+
+```{r}
+install.packages("olsrr")
+library(olsrr)
+```
+
+
+```{r}
+ols_coll_diag(model1)
+
+```
+
+The VIF table shows some variables have highly correlated relationship
+
+```{r}
+model1_1 <- lm(colgtotal$Final.Score~gd+rc+mj+gl)
+
+ols_coll_diag(model1_1)
+
+summary(model1_1)
+```
+
+```{r}
+model1_2 <- lm(colgtotal$Final.Score~gd+rc+mj+gl+ colgtotal$quiz1+colgtotal$Mid.Test+colgtotal$Participation)
+
+ols_coll_diag(model1_2)
+
+summary(model1_2)
+```
+
+The VIF values about the column variables have indicated to us the collinearity, which we use to construct the linear model1 and model2. 
+ 
+
+
+The imagine from model 1.1 and previous imagine from model 1.2 provide visualization for difference of each variable across groups in significant level. So far, those variables are highly correlated as far as we know in this two models; however, if we remove the numerical variables, the relationship is changed, which we found the limitation of VIF, and this suggests us we must attempt other methods for a further study. 
+
+
+
+
+```{r}
+#install.packages("randomForest")
+library(randomForest)
+```
+
+For the final grade regression model, we can find the predictors that have the most variances to the final grade. We have found the most important predictors for implementing the model.
+
+```{r}
+colgtotal<- read.csv("C:/Users/Jing Xie/Documents/R/Teaching Project/Proj 1/Data/colgtotal.csv")
+library(ggasym)
+colnames(colgtotal)[6] = 'Participation'
+colnames(colgtotal)[10]= 'Project'
+colgtotal<- swap_cols(colgtotal,Project,Participation)
+```
+
+
+
+```{r}
+set.seed(1)
+library(caret)
+library(dplyr)
+colgadm2 <- na.omit(colgtotal[,2:11])
+
+rf = randomForest(colgadm2[,-10],as.numeric(colgadm2$Final.Score))
+#colg_imp2 <- varImp(rf, scale = FALSE)
+colg_imp2<- caret::varImp(rf)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+
+```
+
+
+
+```{r}
+ggplot(colg_imp_df, aes(x=reorder(variable, score), y=score)) + 
+  geom_point() +
+  geom_segment(aes(x=variable,xend=variable,y=0,yend=score)) +
+  ylab("Impact Level") +
+  xlab("Variable Name") +
+  coord_flip()
+
+```
+Using random forest model, our conclusion about the importance of variables are agreeable with what we have observed in the beginning of the section.
+
+If we use randomForest classifier, we obtained a different outcome compared to final score model.
+
+```{r}
+set.seed(1)
+rf = randomForest(Project~.,data=colgadm2)
+#colg_imp2 <- varImp(rf, scale = TRUE)
+colg_imp2<- caret::varImp(rf)
+
+colg_imp_df <- data.frame(cbind(variable = rownames(colg_imp2), score = colg_imp2[,1]))
+colg_imp_df$score <- as.double(colg_imp_df$score)
+colg_imp_df[order(colg_imp_df$score,decreasing = TRUE),]
+
+
+
+```
+
+
+The above two cases from random forest model provide us different perspectives. From the plot, we find goal, race and gender don't take significant role with student final performance in the discussion.
+In another hand, the classifier model shows the importance of goal and race in this discussion. 
+
+
+So far, we have an inference to our statistical models such as linear regression and random forest models. In next module, we will begin to train our models using machine learning algorithms 
+
+
+
